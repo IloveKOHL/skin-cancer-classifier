@@ -1,0 +1,19 @@
+# Tiny end-to-end run on synthetic images (see scripts/make_dummy_data.py).
+# Only checks that the pipeline runs - the resulting metrics are meaningless.
+
+data:
+  root: data/dummy
+  metadata_csv: data/dummy/HAM10000_metadata.csv
+  image_size: 64
+  num_workers: 0
+
+model:
+  pretrained: false
+
+train:
+  epochs: 2
+  batch_size: 8
+  warmup_epochs: 0
+
+logging:
+  run_name: smoke

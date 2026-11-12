@@ -1,0 +1,55 @@
+# Default configuration. Other config files (e.g. smoke.yaml) only need to list
+# the keys they change - they are merged on top of this file.
+# Single values can also be changed on the command line:
+#   python -m src.train --override task.mode=multiclass train.batch_size=16
+
+seed: 42
+
+task:
+  mode: binary            # binary (benign vs. malignant) | multiclass (7 HAM10000 classes)
+  threshold: 0.5          # decision threshold for the malignant class (binary mode only)
+
+data:
+  root: data/HAM10000     # images are searched recursively below this folder
+  metadata_csv: data/HAM10000/HAM10000_metadata.csv
+  image_size: 224         # 224 is safe for 8 GB VRAM; up to 384 works with a smaller batch
+  val_size: 0.15          # fraction of lesions (not images)
+  test_size: 0.15
+  num_workers: 4
+
+model:
+  name: efficientnet_b0   # any timm model, e.g. resnet50, convnext_tiny
+  pretrained: true
+  drop_rate: 0.2
+
+train:
+  epochs: 30
+  batch_size: 32
+  lr: 0.0003
+  weight_decay: 0.0001
+  warmup_epochs: 1        # linear warmup, then cosine decay
+  amp: true               # mixed precision (only used on CUDA)
+  grad_clip: 1.0          # max gradient norm, 0 disables clipping
+  imbalance: weighted_loss  # none | weighted_loss | weighted_sampler
+  early_stopping_patience: 7
+  # Metric used for the best checkpoint and early stopping:
+  #   auc    - ROC-AUC (binary) / macro one-vs-rest ROC-AUC (multiclass)
+  #   recall - malignant recall (binary) / melanoma recall (multiclass).
+  #            Careful: recall alone can be maximised by predicting "positive" for everything.
+  monitor: auc
+
+augmentation:
+  hflip: true
+  vflip: true
+  rotation_degrees: 20
+  color_jitter:           # moderate - colour carries diagnostic information
+    brightness: 0.1
+    contrast: 0.1
+    saturation: 0.1
+    hue: 0.02
+
+logging:
+  runs_dir: runs
+  run_name: null          # null -> timestamp + model + mode
+  wandb: false
+  wandb_project: skin-cancer-classifier
