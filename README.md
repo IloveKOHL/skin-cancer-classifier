@@ -156,16 +156,29 @@ tests/       pytest: split leakage, dataset, model forward, metrics, end-to-end 
 
 ## Results
 
-**No model has been trained on the real dataset yet - all values below are placeholders.**
-They will be filled in from `runs/<run_name>/eval_test/metrics.json` after training.
+Values are copied from `runs/<run_name>/eval_test/metrics.json`. Entries marked TBD
+have not been measured yet.
 
-Binary mode (benign vs. malignant), HAM10000 test split (lesion-level split, seed 42):
+Binary mode (benign vs. malignant), HAM10000 test split (lesion-level split, seed 42,
+1,497 images: 1,201 benign / 296 malignant), default config, single run, decision
+threshold 0.5, best checkpoint from epoch 12 (selected by validation ROC-AUC):
 
 | Model | Image size | ROC-AUC | Sensitivity | Specificity | Precision | F1 |
 |---|---|---|---|---|---|---|
-| EfficientNet-B0 | 224 | TBD | TBD | TBD | TBD | TBD |
+| EfficientNet-B0 | 224 | 0.920 | 0.824 | 0.865 | 0.601 | 0.695 |
 
-Multiclass mode (7 classes), HAM10000 test split:
+Confusion matrix (rows = true, columns = predicted):
+
+| | pred. benign | pred. malignant |
+|---|---|---|
+| **benign** | 1039 | 162 |
+| **malignant** | 52 | 244 |
+
+Read these numbers with care: 52 of 296 malignant lesions (about 18 %) were missed
+at this threshold, and 4 of 10 "malignant" predictions were false alarms. This is a
+single run without confidence intervals.
+
+Multiclass mode (7 classes), HAM10000 test split (not trained yet):
 
 | Model | Image size | Macro ROC-AUC | Melanoma recall | Melanoma specificity | Macro F1 | Balanced accuracy |
 |---|---|---|---|---|---|---|
