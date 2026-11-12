@@ -217,6 +217,32 @@ Same model, data split and seed; one run each. Only the listed settings differ.
 - Neither setting improves melanoma detection without a cost. Differences of a few
   points between single runs are within what a different seed could produce.
 
+### Decision threshold for a target sensitivity
+
+Instead of "highest probability wins", flag an image when the probability of the
+critical class (malignant / melanoma) exceeds a threshold. The threshold is chosen on
+the **validation** split so that 90 % of the positives are found there, then applied
+unchanged to the test split:
+
+```bash
+python -m src.evaluate --checkpoint runs/<run_name>/best.pt --target-sensitivity 0.9
+```
+
+| Run | Flagged class | Threshold | Test sensitivity | Test specificity | Test precision | Missed | False alarms |
+|---|---|---|---|---|---|---|---|
+| Binary | malignant | 0.1115 | 0.882 | 0.816 | 0.542 | 35 of 296 | 221 |
+| Multiclass, `weighted_loss` | melanoma | 0.0001 | 0.905 | 0.759 | 0.322 | 16 of 168 | 320 |
+| Multiclass, `weighted_sampler` | melanoma | 0.0023 | 0.899 | 0.830 | 0.401 | 17 of 168 | 226 |
+
+- Compared with argmax, melanoma sensitivity rises from about 0.65 to about 0.90
+  without retraining, paid for with many more false alarms (precision 0.32-0.40:
+  most flagged images are not melanoma).
+- At equal sensitivity the `weighted_sampler` model raises about 30 % fewer false
+  alarms than the `weighted_loss` model - a difference argmax metrics did not show.
+- The thresholds are tiny (0.0001, 0.0023): the models are badly calibrated and
+  over-confident, so the probabilities must not be read as risk estimates.
+- A threshold tuned on about 170 validation melanomas is itself uncertain.
+
 Results on a single internal test split of one dataset say little about real-world
 performance - see the next section.
 
@@ -248,8 +274,8 @@ performance - see the next section.
 - **External validation** on an independent dataset such as
   [PH2](https://www.fc.up.pt/addi/ph2%20database.html) or ISIC 2019/2020 to measure
   generalisation (check each dataset's license and overlap with HAM10000 first).
-- Choose the decision threshold on the validation set for a target sensitivity.
 - Probability calibration (temperature scaling) and confidence intervals (bootstrap).
+- Repeat runs with several seeds to separate real differences from noise.
 - Compare backbones (ResNet50, ConvNeXt-Tiny) and image sizes.
 - Test-time augmentation, cross-validation over lesion-level folds.
 
