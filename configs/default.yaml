@@ -12,7 +12,11 @@ task:
 data:
   root: data/HAM10000     # images are searched recursively below this folder
   metadata_csv: data/HAM10000/HAM10000_metadata.csv
-  image_size: 224         # 224 is safe for 8 GB VRAM; up to 384 works with a smaller batch
+  # Optional extra images that are added to the TRAINING split only (never val/test),
+  # e.g. from scripts/prepare_isic2019.py. Same CSV format as the main metadata.
+  extra_train_csv: null
+  extra_train_root: null
+  image_size: 224        # 224 is safe for 8 GB VRAM; up to 384 works with a smaller batch
   val_size: 0.15          # fraction of lesions (not images)
   test_size: 0.15
   num_workers: 4

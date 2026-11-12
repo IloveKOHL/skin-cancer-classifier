@@ -218,4 +218,18 @@ def prepare_data(cfg: dict) -> tuple[dict[str, pd.DataFrame], list[str]]:
     mode = cfg["task"]["mode"]
     df = load_metadata(cfg["data"]["metadata_csv"], cfg["data"]["root"], mode)
     splits = split_by_lesion(df, cfg["data"]["val_size"], cfg["data"]["test_size"], cfg["seed"])
+
+    extra_csv = cfg["data"].get("extra_train_csv")
+    if extra_csv:
+        extra = load_metadata(extra_csv, cfg["data"]["extra_train_root"], mode)
+        # Guard against leakage: extra data must not contain images or lesions of
+        # the main dataset, whose val/test parts have to stay unseen.
+        overlap = set(extra["image_id"]) & set(df["image_id"])
+        overlap |= set(extra["lesion_id"]) & set(df["lesion_id"])
+        if overlap:
+            raise ValueError(
+                f"Extra training data overlaps with the main dataset ({len(overlap)} ids, "
+                f"e.g. {sorted(overlap)[:3]}). This would leak val/test images into training."
+            )
+        splits["train"] = pd.concat([splits["train"], extra], ignore_index=True)
     return splits, get_class_names(mode)

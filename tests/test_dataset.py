@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
+from PIL import Image
 
 from src.dataset import (
     HAM_CLASSES,
@@ -51,6 +53,43 @@ def test_class_weights_favour_rare_classes():
     weights = compute_class_weights(np.array([0] * 90 + [1] * 10), num_classes=2)
     assert weights[1] > weights[0]
     assert weights.tolist() == pytest.approx([100 / 180, 100 / 20])
+
+
+def _write_extra(cfg, tmp_path, rows):
+    """Create an extra-training CSV that reuses image files of the dummy dataset."""
+    path = tmp_path / "extra.csv"
+    pd.DataFrame(rows).to_csv(path, index=False)
+    cfg["data"]["extra_train_csv"] = str(path)
+    cfg["data"]["extra_train_root"] = str(tmp_path / "extra_images")
+
+
+def test_extra_data_goes_to_train_only(cfg, tmp_path):
+    base, _ = prepare_data(cfg)
+    source = Image.open(base["train"]["path"].iloc[0])
+    (tmp_path / "extra_images").mkdir()
+    for name in ("EXTRA_1", "EXTRA_2"):
+        source.save(tmp_path / "extra_images" / f"{name}.jpg")
+    _write_extra(cfg, tmp_path, [
+        {"lesion_id": "X1", "image_id": "EXTRA_1", "dx": "mel"},
+        {"lesion_id": "X2", "image_id": "EXTRA_2", "dx": "nv"},
+    ])
+    splits, _ = prepare_data(cfg)
+    assert len(splits["train"]) == len(base["train"]) + 2
+    assert {"EXTRA_1", "EXTRA_2"} <= set(splits["train"]["image_id"])
+    for name in ("val", "test"):  # evaluation splits are untouched
+        assert splits[name]["image_id"].tolist() == base[name]["image_id"].tolist()
+
+
+def test_extra_data_overlapping_main_dataset_is_rejected(cfg, tmp_path):
+    base, _ = prepare_data(cfg)
+    leaked = base["test"].iloc[0]
+    (tmp_path / "extra_images").mkdir()
+    Image.open(leaked["path"]).save(tmp_path / "extra_images" / f"{leaked['image_id']}.jpg")
+    _write_extra(cfg, tmp_path, [
+        {"lesion_id": "X1", "image_id": leaked["image_id"], "dx": leaked["dx"]},
+    ])
+    with pytest.raises(ValueError, match="leak"):
+        prepare_data(cfg)
 
 
 @pytest.mark.parametrize("imbalance", ["none", "weighted_loss", "weighted_sampler"])
