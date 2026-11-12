@@ -1,0 +1,32 @@
+# Data and model artifacts - never commit these
+data/*
+!data/README.md
+checkpoints/
+runs/
+outputs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+wandb/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Gradio
+.gradio/
+flagged/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
