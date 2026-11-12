@@ -245,6 +245,40 @@ python -m src.evaluate --checkpoint runs/<run_name>/best.pt --target-sensitivity
   over-confident, so the probabilities must not be read as risk estimates.
 - A threshold tuned on about 170 validation melanomas is itself uncertain.
 
+### Improving the multiclass model: what worked and what did not
+
+**Did not help on its own:** stronger regularisation (random resized crops, label
+smoothing 0.1) for EfficientNet-B0, and a larger backbone at higher resolution
+(ConvNeXt-Tiny, 384 px, `configs/improved.yaml`). On the validation split neither beat
+the baseline's macro ROC-AUC (0.965 and 0.969 vs. 0.973). Validation metrics of these
+runs fluctuate strongly between epochs.
+
+**Helped:** averaging the predictions of several different models (ensemble) and of
+flipped copies of each image (test-time augmentation, `--tta`). The combination was
+chosen on the validation split (best macro ROC-AUC among all pairs/triples of the five
+trained multiclass models) and then measured once on the test split:
+
+```bash
+python -m src.evaluate --tta --target-sensitivity 0.9 --output runs/ensemble/eval_test_tta \
+  --checkpoint runs/<effnet_run>/best.pt runs/<convnext_run_1>/best.pt runs/<convnext_run_2>/best.pt
+```
+
+| Model (test split) | Macro ROC-AUC | Melanoma ROC-AUC | Melanoma recall | Melanoma specificity | Macro F1 | Balanced accuracy | Accuracy |
+|---|---|---|---|---|---|---|---|
+| EfficientNet-B0, `weighted_sampler` (best single model so far) | 0.961 | 0.930 | 0.643 | 0.947 | 0.731 | 0.723 | 0.837 |
+| ConvNeXt-Tiny 384 px, 20 epochs, TTA | 0.956 | 0.938 | 0.774 | 0.926 | 0.727 | 0.775 | 0.831 |
+| **Ensemble**: EfficientNet-B0 (`weighted_loss`) + 2x ConvNeXt-Tiny 384 px, TTA | **0.969** | **0.953** | **0.816** | 0.941 | **0.774** | **0.783** | **0.862** |
+
+With argmax decisions the ensemble finds 137 of 168 melanomas (single model: 108).
+With the melanoma threshold tuned on validation for 90 % sensitivity it reaches test
+sensitivity 0.869 at specificity 0.891 (22 missed, 145 false alarms); the single
+EfficientNet-B0 needed 226 false alarms for a similar sensitivity (0.899).
+
+Caveats: the ensemble needs three forward passes times four flips per image, its
+members were picked on a validation split of only 1,464 images, and everything is
+still one seed and one dataset. The gain is real on this test split but its size is
+uncertain.
+
 Results on a single internal test split of one dataset say little about real-world
 performance - see the next section.
 
