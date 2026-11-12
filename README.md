@@ -178,11 +178,24 @@ Read these numbers with care: 52 of 296 malignant lesions (about 18 %) were miss
 at this threshold, and 4 of 10 "malignant" predictions were false alarms. This is a
 single run without confidence intervals.
 
-Multiclass mode (7 classes), HAM10000 test split (not trained yet):
+Multiclass mode (7 classes), same test split (168 melanoma images), default config
+with `task.mode=multiclass`, single run, best checkpoint from epoch 20 (selected by
+validation macro ROC-AUC):
 
 | Model | Image size | Macro ROC-AUC | Melanoma recall | Melanoma specificity | Macro F1 | Balanced accuracy |
 |---|---|---|---|---|---|---|
-| EfficientNet-B0 | 224 | TBD | TBD | TBD | TBD | TBD |
+| EfficientNet-B0 | 224 | 0.961 | 0.649 | 0.963 | 0.704 | 0.674 |
+
+Recall per class:
+
+| akiec | bcc | bkl | df | mel | nv | vasc |
+|---|---|---|---|---|---|---|
+| 0.647 | 0.714 | 0.516 | 0.455 | 0.649 | 0.962 | 0.773 |
+
+The high macro ROC-AUC hides a weak spot: with argmax decisions the model missed
+59 of 168 melanomas (35 %), 44 of them classified as benign nevi. Accuracy (0.846) is
+dominated by the nevus class. Small classes (`df`, `vasc`: 22 test images each) have
+very uncertain estimates.
 
 Results on a single internal test split of one dataset say little about real-world
 performance - see the next section.
