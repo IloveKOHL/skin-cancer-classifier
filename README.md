@@ -197,6 +197,26 @@ The high macro ROC-AUC hides a weak spot: with argmax decisions the model missed
 dominated by the nevus class. Small classes (`df`, `vasc`: 22 test images each) have
 very uncertain estimates.
 
+### Multiclass experiments: trying to raise melanoma recall
+
+Same model, data split and seed; one run each. Only the listed settings differ.
+
+| Imbalance handling | Checkpoint chosen by | Best epoch | Macro ROC-AUC | Melanoma recall | Melanoma specificity | Macro F1 | Balanced accuracy |
+|---|---|---|---|---|---|---|---|
+| `weighted_loss` (default) | val ROC-AUC | 20 | 0.961 | 0.649 | 0.963 | 0.704 | 0.674 |
+| `weighted_loss` | val melanoma recall | 3 | 0.939 | 0.768 | 0.828 | 0.585 | 0.637 |
+| `weighted_sampler` | val ROC-AUC | 22 | 0.961 | 0.643 | 0.947 | 0.731 | 0.723 |
+
+- Selecting the checkpoint by melanoma recall picked an early, under-trained epoch.
+  It finds more melanomas (129 instead of 109 of 168) but at a high price: melanoma
+  specificity drops from 0.963 to 0.828 and every other summary metric gets worse.
+  Validation recall also jumped between 0.49 and 0.73 from epoch to epoch, so this
+  criterion is noisy.
+- The weighted sampler did not change melanoma recall, but improved the rare classes
+  (`df` 0.455 -> 0.591, `vasc` 0.773 -> 0.864, `bkl` 0.516 -> 0.618) and balanced accuracy.
+- Neither setting improves melanoma detection without a cost. Differences of a few
+  points between single runs are within what a different seed could produce.
+
 Results on a single internal test split of one dataset say little about real-world
 performance - see the next section.
 
