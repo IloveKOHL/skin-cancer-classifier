@@ -125,6 +125,12 @@ def build_transforms(cfg: dict, train: bool) -> transforms.Compose:
 
     if train:
         aug = cfg["augmentation"]
+        crop_scale = aug.get("random_resized_crop_scale")
+        if crop_scale:
+            # Random zoom/crop: the lesion is seen at varying size and position.
+            steps = [
+                transforms.RandomResizedCrop(size, scale=tuple(crop_scale), ratio=(0.9, 1.1))
+            ]
         # Dermatoscopic images have no canonical orientation, so flips and
         # rotations are label-preserving.
         if aug["hflip"]:

@@ -110,7 +110,9 @@ def main(argv: list[str] | None = None) -> Path:
             splits["train"]["label"].to_numpy(), len(class_names)
         ).to(device)
         print(f"Class weights: {[round(w, 3) for w in class_weights.tolist()]}")
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    criterion = nn.CrossEntropyLoss(
+        weight=class_weights, label_smoothing=cfg["train"].get("label_smoothing", 0.0)
+    )
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=cfg["train"]["lr"], weight_decay=cfg["train"]["weight_decay"]
     )

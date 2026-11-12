@@ -21,6 +21,7 @@ model:
   name: efficientnet_b0   # any timm model, e.g. resnet50, convnext_tiny
   pretrained: true
   drop_rate: 0.2
+  drop_path_rate: 0.0     # stochastic depth, useful for larger backbones (e.g. 0.1)
 
 train:
   epochs: 30
@@ -30,6 +31,7 @@ train:
   warmup_epochs: 1        # linear warmup, then cosine decay
   amp: true               # mixed precision (only used on CUDA)
   grad_clip: 1.0          # max gradient norm, 0 disables clipping
+  label_smoothing: 0.0    # e.g. 0.1 makes the model less over-confident
   imbalance: weighted_loss  # none | weighted_loss | weighted_sampler
   early_stopping_patience: 7
   # Metric used for the best checkpoint and early stopping:
@@ -39,6 +41,7 @@ train:
   monitor: auc
 
 augmentation:
+  random_resized_crop_scale: null  # e.g. [0.7, 1.0]: random crop + zoom instead of plain resize
   hflip: true
   vflip: true
   rotation_degrees: 20

@@ -22,6 +22,8 @@ def build_model(cfg: dict, num_classes: int, pretrained: bool | None = None) -> 
         pretrained=pretrained,
         num_classes=num_classes,
         drop_rate=cfg["model"]["drop_rate"],
+        # .get: checkpoints written before this option existed still load
+        drop_path_rate=cfg["model"].get("drop_path_rate", 0.0),
     )
 
 
