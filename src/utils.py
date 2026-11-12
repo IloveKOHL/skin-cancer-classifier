@@ -192,6 +192,34 @@ def compute_metrics(
     return metrics
 
 
+def threshold_for_sensitivity(y_true: np.ndarray, scores: np.ndarray, target: float) -> float:
+    """Highest score threshold that still flags at least ``target`` of the positives.
+
+    ``y_true`` is binary (1 = positive), ``scores`` the positive-class probability;
+    a sample is flagged when ``score >= threshold``. Choose the threshold on the
+    validation split, never on the test split.
+    """
+    if not 0.0 < target <= 1.0:
+        raise ValueError("target sensitivity must be in (0, 1]")
+    positives = np.sort(np.asarray(scores)[np.asarray(y_true) == 1])[::-1]
+    if len(positives) == 0:
+        raise ValueError("No positive samples - cannot choose a threshold.")
+    needed = int(np.ceil(target * len(positives) - 1e-9))  # positives that must be flagged
+    return float(positives[max(needed, 1) - 1])
+
+
+def flag_metrics(y_true: np.ndarray, scores: np.ndarray, threshold: float) -> dict[str, float]:
+    """Sensitivity/specificity/precision/F1 of the rule ``score >= threshold``."""
+    flagged = (np.asarray(scores) >= threshold).astype(int)
+    cm = confusion_matrix(np.asarray(y_true), flagged, labels=[0, 1])
+    metrics = _one_vs_rest(cm, 1)
+    metrics["true_positives"] = int(cm[1, 1])
+    metrics["false_negatives"] = int(cm[1, 0])
+    metrics["false_positives"] = int(cm[0, 1])
+    metrics["true_negatives"] = int(cm[0, 0])
+    return metrics
+
+
 def save_confusion_matrix(cm: np.ndarray, class_names: list[str], path: str | Path) -> None:
     """Save a confusion matrix (counts + row-normalised colours) as PNG."""
     import matplotlib

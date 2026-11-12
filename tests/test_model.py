@@ -6,7 +6,7 @@ import torch
 
 from src.gradcam import grad_cam
 from src.model import build_model
-from src.utils import compute_metrics, load_config
+from src.utils import compute_metrics, flag_metrics, load_config, threshold_for_sensitivity
 
 
 @pytest.mark.parametrize("num_classes", [2, 7])
@@ -59,6 +59,18 @@ def test_multiclass_metrics_report_melanoma_recall():
     assert metrics["recall"] == metrics["melanoma_recall"]
     assert metrics["recall_per_class"]["nv"] == pytest.approx(1.0)
     assert set(metrics["recall_per_class"]) == set(class_names)
+
+
+def test_threshold_for_target_sensitivity():
+    y_true = np.array([1] * 10 + [0] * 10)
+    scores = np.concatenate([np.linspace(0.1, 1.0, 10), np.linspace(0.0, 0.45, 10)])
+    threshold = threshold_for_sensitivity(y_true, scores, target=0.9)
+    assert threshold == pytest.approx(0.2)  # 9 of 10 positives have a score >= 0.2
+    result = flag_metrics(y_true, scores, threshold)
+    assert result["sensitivity"] == pytest.approx(0.9)
+    assert result["false_negatives"] == 1
+    # a stricter target can only lower the threshold
+    assert threshold_for_sensitivity(y_true, scores, target=1.0) <= threshold
 
 
 def test_config_overrides_and_validation():

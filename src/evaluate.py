@@ -21,7 +21,19 @@ from torch.utils.data import DataLoader
 
 from src.dataset import build_dataloaders, prepare_data
 from src.model import load_checkpoint
-from src.utils import compute_metrics, get_device, save_confusion_matrix
+from src.utils import (
+    compute_metrics,
+    flag_metrics,
+    get_device,
+    save_confusion_matrix,
+    threshold_for_sensitivity,
+)
+
+
+def positive_class(class_names: list[str], mode: str) -> tuple[int, str]:
+    """The class whose detection matters most: malignant (binary) or melanoma."""
+    name = "malignant" if mode == "binary" else "mel"
+    return class_names.index(name), name
 
 
 @torch.no_grad()
@@ -68,6 +80,13 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--checkpoint", required=True, help="Path to best.pt")
     parser.add_argument("--split", default="test", choices=["val", "test"])
     parser.add_argument("--device", default=None, help="cuda or cpu (default: auto)")
+    parser.add_argument(
+        "--target-sensitivity",
+        type=float,
+        default=None,
+        help="e.g. 0.9: additionally report a 'flag as malignant/melanoma' rule whose "
+        "probability threshold is chosen on the validation split to reach this sensitivity",
+    )
     args = parser.parse_args(argv)
 
     device = get_device(args.device)
@@ -77,14 +96,35 @@ def main(argv: list[str] | None = None) -> dict:
 
     # Same config + same seed -> exactly the split that was used for training.
     splits, _ = prepare_data(cfg)
-    loader = build_dataloaders(cfg, splits)[args.split]
+    loaders = build_dataloaders(cfg, splits)
     amp = cfg["train"]["amp"] and device.type == "cuda"
-    loss, y_true, y_prob = predict_loader(model, loader, device, amp)
+    loss, y_true, y_prob = predict_loader(model, loaders[args.split], device, amp)
 
     metrics = compute_metrics(y_true, y_prob, class_names, mode, cfg["task"]["threshold"])
     metrics["loss"] = loss
     metrics["num_images"] = int(len(y_true))
     metrics["split"] = args.split
+
+    # Optional: one-vs-rest decision rule tuned for a target sensitivity.
+    # The threshold is always chosen on the validation split, so the numbers
+    # reported for the test split stay unbiased.
+    if args.target_sensitivity is not None:
+        pos_idx, pos_name = positive_class(class_names, mode)
+        if args.split == "val":
+            val_true, val_prob = y_true, y_prob
+        else:
+            _, val_true, val_prob = predict_loader(model, loaders["val"], device, amp)
+        threshold = threshold_for_sensitivity(
+            val_true == pos_idx, val_prob[:, pos_idx], args.target_sensitivity
+        )
+        metrics["flag_rule"] = {
+            "positive_class": pos_name,
+            "target_sensitivity": args.target_sensitivity,
+            "threshold": threshold,
+            "threshold_chosen_on": "val",
+            "val": flag_metrics(val_true == pos_idx, val_prob[:, pos_idx], threshold),
+            args.split: flag_metrics(y_true == pos_idx, y_prob[:, pos_idx], threshold),
+        }
 
     if mode == "binary":
         y_pred = (y_prob[:, 1] >= cfg["task"]["threshold"]).astype(int)
@@ -111,6 +151,18 @@ def main(argv: list[str] | None = None) -> dict:
     print(f"\n{args.split} split: {len(y_true)} images, checkpoint epoch {ckpt['epoch']}")
     print(format_summary(metrics, mode))
     print("\n" + report)
+    if "flag_rule" in metrics:
+        rule = metrics["flag_rule"]
+        result = rule[args.split]
+        print(
+            f"Flag rule: p({rule['positive_class']}) >= {rule['threshold']:.4f} "
+            f"(chosen on val for sensitivity >= {rule['target_sensitivity']})\n"
+            f"  val : sensitivity {rule['val']['sensitivity']:.4f} | "
+            f"specificity {rule['val']['specificity']:.4f}\n"
+            f"  {args.split:<4}: sensitivity {result['sensitivity']:.4f} | "
+            f"specificity {result['specificity']:.4f} | precision {result['precision']:.4f} | "
+            f"missed {result['false_negatives']} | false alarms {result['false_positives']}\n"
+        )
     print(f"Results written to {out_dir}")
     return metrics
 

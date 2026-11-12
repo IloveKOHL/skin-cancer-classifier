@@ -22,7 +22,11 @@ def test_train_evaluate_gradcam(cfg, tmp_path, mode):
     assert (run_dir / "config.yaml").exists()
     assert (run_dir / "splits.csv").exists()
 
-    metrics = evaluate.main(["--checkpoint", str(checkpoint), "--device", "cpu"])
+    metrics = evaluate.main(
+        ["--checkpoint", str(checkpoint), "--device", "cpu", "--target-sensitivity", "0.9"]
+    )
+    assert metrics["flag_rule"]["val"]["sensitivity"] >= 0.9
+    assert 0.0 <= metrics["flag_rule"]["test"]["sensitivity"] <= 1.0
     eval_dir = run_dir / "eval_test"
     assert (eval_dir / "confusion_matrix.png").stat().st_size > 0
     assert (eval_dir / "classification_report.txt").exists()
