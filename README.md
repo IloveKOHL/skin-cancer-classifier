@@ -27,6 +27,9 @@ clinically meaningful metrics, and explainability.
 |---|---|---|
 | [HAM10000](https://doi.org/10.7910/DVN/DBW86T) (Tschandl et al., 2018) | training, validation, test | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - **non-commercial only** |
 
+- Optional extra training data: [ISIC 2019](https://challenge.isic-archive.com/data/#2019)
+  (BCN_20000: Hernández-Pérez et al., 2024; HAM10000; MSK: Codella et al., 2017),
+  also CC BY-NC 4.0. Only its non-HAM10000 images are used, and only for training.
 - The dataset is **not** part of this repository. See [data/README.md](data/README.md)
   for download steps, citation and the class definitions.
 - Model weights trained on HAM10000 are derived from non-commercially licensed data.
@@ -279,6 +282,42 @@ Caveats: the ensemble needs three forward passes times four flips per image, its
 members were picked on a validation split of only 1,464 images, and everything is
 still one seed and one dataset. The gain is real on this test split but its size is
 uncertain.
+
+### Adding more training data (ISIC 2019)
+
+`scripts/prepare_isic2019.py` adds 14,885 images from other hospitals (BCN_20000, MSK)
+to the **training split only**. All 10,015 HAM10000 images contained in ISIC 2019 are
+removed first, so validation and test split are unchanged and still unseen. Training
+set: 21,939 instead of 7,054 images (melanoma: 4,188 instead of 779).
+
+```bash
+python scripts/prepare_isic2019.py          # about 9.8 GB download, CC BY-NC 4.0
+python -m src.train --override task.mode=multiclass train.imbalance=weighted_sampler \
+  data.extra_train_csv=data/ISIC2019/extra_train.csv data.extra_train_root=data/ISIC2019/images
+```
+
+Single models barely improved on the HAM10000 validation split (macro ROC-AUC with
+TTA: EfficientNet-B0 0.974 -> 0.976, ConvNeXt-Tiny 0.970 -> 0.978), and their
+melanoma ROC-AUC did not improve at all. The extra images come from other clinics
+and devices; they may help on such images, which this test split cannot show.
+
+Averaging **all seven** trained multiclass models (no selection) with TTA, measured
+once on the test split:
+
+| Model (test split) | Macro ROC-AUC | Melanoma ROC-AUC | Melanoma recall | Melanoma specificity | Macro F1 | Balanced accuracy | Accuracy |
+|---|---|---|---|---|---|---|---|
+| Ensemble of 3 (HAM10000 only), from above | 0.969 | 0.953 | 0.816 | 0.941 | 0.774 | 0.783 | 0.862 |
+| **Ensemble of 7** (2 of them trained with ISIC 2019) | **0.982** | **0.957** | 0.774 | **0.957** | **0.811** | **0.806** | **0.879** |
+
+Recall per class (ensemble of 7): akiec 0.784, bcc 0.870, bkl 0.637, df 0.727,
+mel 0.774, nv 0.943, vasc 0.909.
+
+Honest reading: the larger ensemble is better overall (fewer confusions between the
+non-melanoma classes), but **melanoma detection did not improve**. With argmax it
+finds fewer melanomas (130 instead of 137 of 168) in exchange for fewer false alarms;
+at the 90 % validation-sensitivity threshold both ensembles are equivalent (21 vs. 22
+missed, 150 vs. 145 false alarms). The test split has now been used for several
+comparisons, so these numbers are somewhat optimistic.
 
 Results on a single internal test split of one dataset say little about real-world
 performance - see the next section.
