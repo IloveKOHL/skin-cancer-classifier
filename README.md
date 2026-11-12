@@ -107,6 +107,7 @@ python -m src.gradcam --checkpoint runs/<run_name>/best.pt --num-samples 8
 python app/demo.py --checkpoint runs/<run_name>/best.pt
 python app/demo.py --checkpoint runs/<binary_run>/best.pt runs/<multiclass_run>/best.pt
 #    plain-language explanations of every class are shown; German UI with --language de
+#    add --ensemble to average all given checkpoints into one combined model
 ```
 
 Watch training curves with `tensorboard --logdir runs`.
