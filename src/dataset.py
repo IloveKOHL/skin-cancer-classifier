@@ -22,6 +22,19 @@ HAM_CLASSES = ["akiec", "bcc", "bkl", "df", "mel", "nv", "vasc"]
 MALIGNANT = {"mel", "bcc", "akiec"}
 BINARY_CLASSES = ["benign", "malignant"]
 
+# Human-readable names for user-facing output (demo, reports).
+DISPLAY_NAMES = {
+    "benign": "Benign",
+    "malignant": "Malignant",
+    "nv": "Melanocytic nevus (mole) - benign",
+    "bkl": "Benign keratosis - benign",
+    "df": "Dermatofibroma - benign",
+    "vasc": "Vascular lesion - benign",
+    "mel": "Melanoma - malignant",
+    "bcc": "Basal cell carcinoma - malignant",
+    "akiec": "Actinic keratosis / Bowen's disease - pre-cancerous",
+}
+
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 

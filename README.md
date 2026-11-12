@@ -103,8 +103,9 @@ python -m src.evaluate --checkpoint runs/<run_name>/best.pt --split test
 # 4. Grad-CAM heatmaps for test images
 python -m src.gradcam --checkpoint runs/<run_name>/best.pt --num-samples 8
 
-# 5. Interactive demo
+# 5. Interactive demo (pass several checkpoints to compare models side by side)
 python app/demo.py --checkpoint runs/<run_name>/best.pt
+python app/demo.py --checkpoint runs/<binary_run>/best.pt runs/<multiclass_run>/best.pt
 ```
 
 Watch training curves with `tensorboard --logdir runs`.
